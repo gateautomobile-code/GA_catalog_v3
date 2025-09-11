@@ -139,7 +139,7 @@
             <p class="text-sm text-gray-500 mb-2"></p>
             <p class="text-xs text-gray-500 mt-2 max-w-2xl mx-auto">Не является публичной офертой. Сведения о стоимости являются рекламной информацией и могут не совпадать с окончательной стоимостью продажи. Все фотографии представлены с целью иллюстрации предложения. Для точной информации об ассортименте и ценах свяжитесь с сотрудниками компании.</p>
             <div class="mt-4 flex justify-center items-center gap-2">
-                <span class="inline-block bg-gray-200 text-gray-600 text-xs font-semibold px-2.5 py-0.5 rounded-full">Beta 4.11.14</span>
+                <span class="inline-block bg-gray-200 text-gray-600 text-xs font-semibold px-2.5 py-0.5 rounded-full">Beta 4.11.15</span>
                 <a href="https://yandex.by/maps/org/gate_automobile/152188575796/?from=mapframe&ll=37.670141%2C55.714044&z=16" target="_blank" rel="noopener noreferrer" class="inline-block text-black text-xs font-semibold px-2.5 py-0.5 rounded-full" style="background-color: #FFCC00;">Посмотреть на Яндекс.Картах</a>
             </div>
         </footer>
@@ -556,7 +556,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="bg-white rounded-[2rem] shadow-sm overflow-hidden flex flex-col h-full group">
                 <div class="p-4 flex-grow flex flex-col">
                     <div class="flex justify-between items-start">
-                        <h2 class="text-xl font-bold text-gray-900 leading-tight min-h-[3.5rem] line-clamp-2 flex-grow pr-2">${car.name}</h2>
+                        <h2 data-action="details" data-car-id="${car.id}" class="text-xl font-bold text-gray-900 leading-tight min-h-[3.5rem] line-clamp-2 flex-grow pr-2 cursor-pointer hover:text-gray-700 transition-colors">${car.name}</h2>
                         <button data-action="share" data-car-id="${car.id}" class="bg-black text-white rounded-full p-2.5 flex-shrink-0 hover:bg-gray-800 transition-colors" aria-label="Поделиться">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" /></svg>
                         </button>
@@ -573,7 +573,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             ${car.enginePower ? `<div class="text-xs font-semibold px-3 py-1 rounded-full bg-gray-100 text-gray-600">${car.enginePower} л.с.</div>` : ''}
                         </div>
                     </div>
-                    <div class="relative w-full aspect-[16/10] bg-gray-100 rounded-3xl overflow-hidden mt-auto cursor-grab active:cursor-grabbing" data-swipeable-id="${car.id}">
+                    <div data-action="details" data-car-id="${car.id}" class="relative w-full aspect-[16/10] bg-gray-100 rounded-3xl overflow-hidden mt-auto cursor-pointer" data-swipeable-id="${car.id}">
                         ${imagesHTML}
                     </div>
                     <div class="mt-4">
@@ -618,9 +618,9 @@ document.addEventListener('DOMContentLoaded', () => {
         return `
             <div class="bg-white rounded-2xl shadow-sm overflow-hidden flex flex-col h-full group">
                  <div class="p-3 flex flex-col flex-grow">
-                    <h2 class="text-base font-bold text-gray-900 leading-tight min-h-[2.5rem] line-clamp-2 mb-2">${car.name}</h2>
+                    <h2 data-action="details" data-car-id="${car.id}" class="text-base font-bold text-gray-900 leading-tight min-h-[2.5rem] line-clamp-2 mb-2 cursor-pointer hover:text-gray-700 transition-colors">${car.name}</h2>
 
-                    <div class="relative w-full aspect-[16/10] bg-gray-100 overflow-hidden rounded-xl cursor-grab active:cursor-grabbing" data-swipeable-id="${car.id}">
+                    <div data-action="details" data-car-id="${car.id}" class="relative w-full aspect-[16/10] bg-gray-100 overflow-hidden rounded-xl cursor-pointer" data-swipeable-id="${car.id}">
                         ${imagesHTML}
                     </div>
 
@@ -1112,11 +1112,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     contentArea.addEventListener('click', (e) => {
-        const button = e.target.closest('button[data-action]');
-        
-        if (button && button.dataset.action === 'details') {
+        const actionTarget = e.target.closest('[data-action]');
+        if (!actionTarget) return;
+
+        const action = actionTarget.dataset.action;
+        const carId = actionTarget.dataset.carId;
+
+        if (action === 'details') {
             e.stopPropagation();
-            const carId = button.dataset.carId;
             state.currentView = 'detail';
             state.selectedCarId = carId;
 
@@ -1126,9 +1129,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             window.scrollTo(0, 0);
             renderApp();
-        } else if (button && button.dataset.action === 'share') {
+        } else if (action === 'share') {
             e.stopPropagation();
-            const carId = button.dataset.carId;
             const car = cars.find(c => c.id === carId);
             if (car) shareCar(car);
         }
