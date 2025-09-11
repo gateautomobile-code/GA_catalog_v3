@@ -64,7 +64,6 @@
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
 </head>
 <body class="bg-gray-100">
 
@@ -140,7 +139,7 @@
             <p class="text-sm text-gray-500 mb-2"></p>
             <p class="text-xs text-gray-500 mt-2 max-w-2xl mx-auto">Не является публичной офертой. Сведения о стоимости являются рекламной информацией и могут не совпадать с окончательной стоимостью продажи. Все фотографии представлены с целью иллюстрации предложения. Для точной информации об ассортименте и ценах свяжитесь с сотрудниками компании.</p>
             <div class="mt-4 flex justify-center items-center gap-2">
-                <span class="inline-block bg-gray-200 text-gray-600 text-xs font-semibold px-2.5 py-0.5 rounded-full">Beta 4.11.13</span>
+                <span class="inline-block bg-gray-200 text-gray-600 text-xs font-semibold px-2.5 py-0.5 rounded-full">Beta 4.11.14</span>
                 <a href="https://yandex.by/maps/org/gate_automobile/152188575796/?from=mapframe&ll=37.670141%2C55.714044&z=16" target="_blank" rel="noopener noreferrer" class="inline-block text-black text-xs font-semibold px-2.5 py-0.5 rounded-full" style="background-color: #FFCC00;">Посмотреть на Яндекс.Картах</a>
             </div>
         </footer>
@@ -207,46 +206,65 @@ document.addEventListener('DOMContentLoaded', () => {
 
         return { value, currency };
     };
-    
-    const convertAllCarPrices = () => {
-        cars.forEach(car => {
-            if (state.eurRate && car.priceCurrency === 'EUR') {
-                car.finalPrice = car.price * state.eurRate;
-                car.finalPriceCurrency = 'RUB';
-            } else {
-                car.finalPrice = car.price;
-                car.finalPriceCurrency = car.priceCurrency;
-            }
-
-            if (car.discountPrice) {
-                if (state.eurRate && car.discountPriceCurrency === 'EUR') {
-                    car.finalDiscountPrice = car.discountPrice * state.eurRate;
-                    car.finalDiscountPriceCurrency = 'RUB';
-                } else {
-                    car.finalDiscountPrice = car.discountPrice;
-                    car.finalDiscountPriceCurrency = car.discountPriceCurrency;
-                }
-            } else {
-                car.finalDiscountPrice = car.discountPrice;
-            }
-        });
-    };
 
     const fetchAndParseCars = async (initialCarId = null) => {
-        state.loading = true;
-        state.error = null;
-        renderApp();
+        const CACHE_KEY = 'gateAutoCarData';
+        const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes in milliseconds
+        
+        let hasRenderedFromCache = false;
+        
+        // --- 1. Attempt to load from cache ---
+        const cachedItem = localStorage.getItem(CACHE_KEY);
+        if (cachedItem) {
+            try {
+                const { timestamp, cachedCars, cachedEurRate } = JSON.parse(cachedItem);
+                if (Date.now() - timestamp < CACHE_DURATION) {
+                    cars = cachedCars;
+                    state.eurRate = cachedEurRate;
+                    hasRenderedFromCache = true;
+                    console.log(`Loaded ${cars.length} cars from cache.`);
+                } else {
+                    console.log("Cache is expired.");
+                    localStorage.removeItem(CACHE_KEY);
+                }
+            } catch (e) {
+                console.error("Failed to parse cache, removing it.", e);
+                localStorage.removeItem(CACHE_KEY);
+            }
+        }
+        
+        // --- 2. Initial Render ---
+        if (hasRenderedFromCache) {
+            state.loading = false;
+            if (initialCarId) {
+                const carExists = cars.some(c => c.id === initialCarId);
+                if (carExists) {
+                    state.currentView = 'detail';
+                    state.selectedCarId = initialCarId;
+                } else {
+                    const url = new URL(window.location);
+                    url.searchParams.delete('car');
+                    window.history.replaceState({}, '', url);
+                }
+            }
+            state.renderedItemsCount = 20;
+            renderApp(true);
+        } else {
+            state.loading = true;
+            state.error = null;
+            renderApp();
+        }
 
+        // --- 3. Fetch fresh data from network ---
         const RATE_API_URL = 'https://www.cbr-xml-daily.ru/daily.xml';
         const RATE_PROXY_URL = `https://api.allorigins.win/raw?url=${encodeURIComponent(RATE_API_URL)}`;
 
         try {
-            // Fetch car data and currency rate in parallel
             const [carResponse, rateResponse] = await Promise.all([
                 fetch(PROXY_URL),
                 fetch(RATE_PROXY_URL).catch(e => {
                     console.error("Rate fetch failed, proceeding without it.", e);
-                    return null; // Don't let rate failure block the app
+                    return null;
                 })
             ]);
 
@@ -254,8 +272,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(`Failed to fetch car feed: ${carResponse?.statusText || 'Unknown error'}`);
             }
             
-            // Parse currency rate first
-            state.eurRate = null; // Default to null
+            let freshEurRate = null;
             if (rateResponse && rateResponse.ok) {
                 try {
                     const rateXmlText = await rateResponse.text();
@@ -265,16 +282,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (eurValuteNode) {
                         const valueStr = eurValuteNode.querySelector('Value')?.textContent;
                         if (valueStr) {
-                            state.eurRate = parseFloat(valueStr.replace(',', '.'));
+                            freshEurRate = parseFloat(valueStr.replace(',', '.'));
                         }
                     }
                 } catch (rateError) {
                     console.error("Could not parse EUR rate, proceeding without it.", rateError);
-                    // state.eurRate remains null
                 }
             }
             
-            // Then parse car data
             const xmlText = await carResponse.text();
             const parser = new DOMParser();
             const xmlDoc = parser.parseFromString(xmlText, "application/xml");
@@ -284,7 +299,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             
             const carNodes = Array.from(xmlDoc.getElementsByTagName('car'));
-            cars = carNodes.map(node => {
+            let freshCars = carNodes.map(node => {
                 const priceStr = getSafeTextContent(node, 'price');
                 const discountPriceStr = getSafeTextContent(node, 'discount_price');
                 const brand = getSafeTextContent(node, 'mark_id');
@@ -339,29 +354,80 @@ document.addEventListener('DOMContentLoaded', () => {
                 return car;
             }).filter(car => car.id);
             
-            convertAllCarPrices();
-            state.loading = false;
-            
-            if (initialCarId) {
-                const carExists = cars.some(c => c.id === initialCarId);
-                if (carExists) {
-                    state.currentView = 'detail';
-                    state.selectedCarId = initialCarId;
+            freshCars.forEach(car => {
+                if (freshEurRate && car.priceCurrency === 'EUR') {
+                    car.finalPrice = car.price * freshEurRate;
+                    car.finalPriceCurrency = 'RUB';
                 } else {
+                    car.finalPrice = car.price;
+                    car.finalPriceCurrency = car.priceCurrency;
+                }
+                if (car.discountPrice) {
+                    if (freshEurRate && car.discountPriceCurrency === 'EUR') {
+                        car.finalDiscountPrice = car.discountPrice * freshEurRate;
+                        car.finalDiscountPriceCurrency = 'RUB';
+                    } else {
+                        car.finalDiscountPrice = car.discountPrice;
+                        car.finalDiscountPriceCurrency = car.discountPriceCurrency;
+                    }
+                } else {
+                    car.finalDiscountPrice = car.discountPrice;
+                }
+            });
+
+            const oldDataString = JSON.stringify({ cars, eurRate: state.eurRate });
+            const newDataString = JSON.stringify({ cars: freshCars, eurRate: freshEurRate });
+            
+            if (oldDataString !== newDataString) {
+                console.log("Network data is different. Updating UI and cache.");
+                cars = freshCars;
+                state.eurRate = freshEurRate;
+
+                const newCacheItem = {
+                    timestamp: Date.now(),
+                    cachedCars: cars,
+                    cachedEurRate: state.eurRate
+                };
+                localStorage.setItem(CACHE_KEY, JSON.stringify(newCacheItem));
+
+                if (state.currentView === 'detail' && !cars.some(c => c.id === state.selectedCarId)) {
+                    state.currentView = 'list';
+                    state.selectedCarId = null;
                     const url = new URL(window.location);
                     url.searchParams.delete('car');
-                    window.history.replaceState({}, '', url);
+                    window.history.pushState({}, '', url);
                 }
+
+                if (state.loading) {
+                    state.loading = false;
+                    if (initialCarId) {
+                        const carExists = cars.some(c => c.id === initialCarId);
+                        if (carExists) {
+                            state.currentView = 'detail';
+                            state.selectedCarId = initialCarId;
+                        } else {
+                            const url = new URL(window.location);
+                            url.searchParams.delete('car');
+                            window.history.replaceState({}, '', url);
+                        }
+                    }
+                }
+                state.renderedItemsCount = 20;
+                renderApp(true);
+            } else if (state.loading) {
+                console.log("Network data is the same. Hiding loader.");
+                state.loading = false;
+                renderApp(true);
+            } else {
+                console.log("Network data is the same as cached. No UI update needed.");
             }
-            
-            state.renderedItemsCount = 20; // Reset on new data fetch
-            renderApp(true);
-            
         } catch (error) {
-            console.error("Error in fetchAndParseCars:", error);
-            state.loading = false;
-            state.error = "Не удалось загрузить данные об автомобилях. Пожалуйста, проверьте ваше интернет-соединение и попробуйте еще раз.";
-            renderApp();
+            console.error("Error fetching fresh data:", error);
+            if (!hasRenderedFromCache) {
+                state.loading = false;
+                state.error = "Не удалось загрузить данные об автомобилях. Пожалуйста, проверьте ваше интернет-соединение и попробуйте еще раз.";
+                renderApp();
+            }
         }
     };
     // --- END OF SERVICES ---
@@ -1174,6 +1240,5 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- END INITIAL LOAD ---
 });
 </script>
-<script type="module" src="/index.tsx"></script>
 </body>
 </html>
