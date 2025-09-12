@@ -54,6 +54,20 @@
       #content-area > .grid {
         transition: grid-template-columns 0.4s ease-in-out;
       }
+      /* Animation for cards fading in */
+      @keyframes cardFadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .car-card {
+        animation: cardFadeIn 0.4s ease-out forwards;
+      }
     </style>
 <script type="importmap">
 {
@@ -152,13 +166,22 @@
             <p class="text-sm text-gray-500 mb-2"></p>
             <p class="text-xs text-gray-500 mt-2 max-w-2xl mx-auto">Не является публичной офертой. Сведения о стоимости являются рекламной информацией и могут не совпадать с окончательной стоимостью продажи. Все фотографии представлены с целью иллюстрации предложения. Для точной информации об ассортименте и ценах свяжитесь с сотрудниками компании.</p>
             <div class="mt-4 flex justify-center items-center gap-2">
-                <span class="inline-block bg-gray-200 text-gray-600 text-xs font-semibold px-2.5 py-0.5 rounded-full">Beta 5.12.1</span>
+                <span class="inline-block bg-gray-200 text-gray-600 text-xs font-semibold px-2.5 py-0.5 rounded-full">Beta 5.12.3</span>
                 <a href="https://yandex.by/maps/org/gate_automobile/152188575796/?from=mapframe&ll=37.670141%2C55.714044&z=16" target="_blank" rel="noopener noreferrer" class="inline-block text-black text-xs font-semibold px-2.5 py-0.5 rounded-full" style="background-color: #FFCC00;">Посмотреть на Яндекс.Картах</a>
             </div>
         </footer>
     </div>
 </div>
 
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+                .then(reg => console.log('Service Worker registered.', reg))
+                .catch(err => console.log('Service Worker registration failed: ', err));
+        });
+    }
+</script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     // --- START OF STATE & CONFIG ---
@@ -557,7 +580,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const showElectro = !car.engineVolume || car.engineVolume === '-';
         
         const imagesHTML = car.images.length > 0 ?
-            `<img src="${car.images[car.currentImageIndex]}" alt="${car.name}" class="w-full h-full object-cover">` :
+            `<img src="${car.images[car.currentImageIndex]}" alt="${car.name}" class="w-full h-full object-cover" loading="lazy">` :
             `<div class="w-full h-full flex items-center justify-center"><span class="text-gray-400">Нет фото</span></div>`;
         
         const detailsButtonHTML = car.isExclusive
@@ -566,7 +589,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
         return `
-            <div class="bg-white rounded-[2rem] shadow-sm overflow-hidden flex flex-col h-full group">
+            <div class="car-card bg-white rounded-[2rem] shadow-sm overflow-hidden flex flex-col h-full group">
                 <div class="p-4 flex-grow flex flex-col">
                     <div class="flex justify-between items-start">
                         <h2 data-action="details" data-car-id="${car.id}" class="text-xl font-bold text-gray-900 leading-tight min-h-[3.5rem] line-clamp-2 flex-grow pr-2 cursor-pointer hover:text-gray-700 transition-colors">${car.name}</h2>
@@ -621,7 +644,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const availabilityClass = availabilityStyles[car.availability] || 'bg-gray-100 text-gray-600';
         
         const imagesHTML = car.images.length > 0 ?
-            `<img src="${car.images[car.currentImageIndex]}" alt="${car.name}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">` :
+            `<img src="${car.images[car.currentImageIndex]}" alt="${car.name}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy">` :
             `<div class="w-full h-full flex items-center justify-center"><span class="text-gray-400">Нет фото</span></div>`;
         
         const detailsButtonHTML = car.isExclusive
@@ -629,7 +652,7 @@ document.addEventListener('DOMContentLoaded', () => {
             : `<button data-action="details" data-car-id="${car.id}" class="w-full h-12 bg-black text-white text-sm font-bold rounded-full hover:bg-gray-800 transition-all transform active:scale-95">Подробнее</button>`;
 
         return `
-            <div class="bg-white rounded-2xl shadow-sm overflow-hidden flex flex-col h-full group">
+            <div class="car-card bg-white rounded-2xl shadow-sm overflow-hidden flex flex-col h-full group">
                  <div class="p-3 flex flex-col flex-grow">
                     <h2 data-action="details" data-car-id="${car.id}" class="text-base font-bold text-gray-900 leading-tight min-h-[2.5rem] line-clamp-2 mb-2 cursor-pointer hover:text-gray-700 transition-colors">${car.name}</h2>
 
@@ -683,7 +706,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const availabilityClass = availabilityStyles[car.availability] || 'bg-gray-100 text-gray-600';
 
         const imagesHTML = car.images.length > 0 ?
-            `<img src="${car.images[car.currentImageIndex]}" alt="${car.name}" class="w-full h-full object-cover">` :
+            `<img src="${car.images[car.currentImageIndex]}" alt="${car.name}" class="w-full h-full object-cover" loading="lazy">` :
             `<div class="w-full h-full flex items-center justify-center bg-gray-100 rounded-3xl"><span class="text-gray-400">Нет фото</span></div>`;
         
         const imageNavButtonsHTML = car.images.length > 1 ? `
