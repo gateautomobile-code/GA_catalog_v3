@@ -11,7 +11,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚗</text></svg>">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100%22><text y=%22.9em%22 font-size=%2290%22>🚗</text></svg>">
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Каталог автомобилей</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -152,7 +152,7 @@
             <p class="text-sm text-gray-500 mb-2"></p>
             <p class="text-xs text-gray-500 mt-2 max-w-2xl mx-auto">Не является публичной офертой. Сведения о стоимости являются рекламной информацией и могут не совпадать с окончательной стоимостью продажи. Все фотографии представлены с целью иллюстрации предложения. Для точной информации об ассортименте и ценах свяжитесь с сотрудниками компании.</p>
             <div class="mt-4 flex justify-center items-center gap-2">
-                <span class="inline-block bg-gray-200 text-gray-600 text-xs font-semibold px-2.5 py-0.5 rounded-full">Beta 4.11.15</span>
+                <span class="inline-block bg-gray-200 text-gray-600 text-xs font-semibold px-2.5 py-0.5 rounded-full">Beta 5.12.1</span>
                 <a href="https://yandex.by/maps/org/gate_automobile/152188575796/?from=mapframe&ll=37.670141%2C55.714044&z=16" target="_blank" rel="noopener noreferrer" class="inline-block text-black text-xs font-semibold px-2.5 py-0.5 rounded-full" style="background-color: #FFCC00;">Посмотреть на Яндекс.Картах</a>
             </div>
         </footer>
@@ -822,7 +822,55 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
     };
 
-    const renderLoader = () => `<div class="flex justify-center items-center py-20"><div class="w-12 h-12 border-4 border-gray-200 border-t-gray-900 rounded-full animate-spin"></div></div>`;
+    const createSkeletonCardGridHTML = () => `
+        <div class="bg-white rounded-2xl shadow-sm overflow-hidden p-3 animate-pulse">
+            <div class="space-y-3">
+                <div class="h-4 bg-gray-200 rounded w-3/4"></div>
+                <div class="h-4 bg-gray-200 rounded w-1/2"></div>
+                <div class="w-full aspect-[16/10] bg-gray-200 rounded-xl"></div>
+                <div class="flex justify-between items-center">
+                    <div class="h-5 w-1/3 bg-gray-200 rounded-full"></div>
+                    <div class="h-4 w-1/4 bg-gray-200 rounded"></div>
+                </div>
+                <div class="h-6 w-1/2 bg-gray-200 rounded"></div>
+                <div class="h-12 w-full bg-gray-200 rounded-full"></div>
+            </div>
+        </div>`;
+
+    const createSkeletonCardListHTML = () => `
+        <div class="bg-white rounded-[2rem] shadow-sm overflow-hidden p-4 animate-pulse">
+            <div class="space-y-4">
+                <div class="flex justify-between items-start">
+                    <div class="space-y-2 flex-grow">
+                        <div class="h-6 bg-gray-200 rounded w-5/6"></div>
+                        <div class="h-6 bg-gray-200 rounded w-3/4"></div>
+                    </div>
+                    <div class="w-10 h-10 bg-gray-200 rounded-full flex-shrink-0 ml-4"></div>
+                </div>
+                <div class="h-4 bg-gray-200 rounded w-1/2"></div>
+                <div class="h-8 w-1/3 bg-gray-200 rounded"></div>
+                 <div class="flex flex-wrap items-center gap-2 w-full">
+                    <div class="h-6 w-1/4 bg-gray-200 rounded-full"></div>
+                    <div class="h-6 w-1/5 bg-gray-200 rounded-full"></div>
+                    <div class="h-6 w-1/6 bg-gray-200 rounded-full"></div>
+                 </div>
+                <div class="w-full aspect-[16/10] bg-gray-200 rounded-3xl"></div>
+                <div class="h-14 w-full bg-gray-200 rounded-full"></div>
+            </div>
+        </div>
+    `;
+
+    const renderLoader = () => {
+        const skeletonCount = 12;
+        const cardRenderer = state.gridLayout === 'grid' ? createSkeletonCardGridHTML : createSkeletonCardListHTML;
+        const skeletonsHTML = Array(skeletonCount).fill('').map(cardRenderer).join('');
+        
+        const gridLayoutClasses = state.gridLayout === 'grid'
+            ? 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4'
+            : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-y-12 gap-x-6';
+            
+        return `<div class="${gridLayoutClasses}">${skeletonsHTML}</div>`;
+    };
     
     const renderError = (message) => `
         <div class="text-center py-10 bg-white rounded-2xl shadow-sm max-w-md mx-auto">
