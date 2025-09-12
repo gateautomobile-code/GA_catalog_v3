@@ -68,6 +68,18 @@
       .car-card {
         animation: cardFadeIn 0.4s ease-out forwards;
       }
+      /* Animation for progress bar */
+      @keyframes progress-bar-stripes {
+        from { background-position: 40px 0; }
+        to { background-position: 0 0; }
+      }
+      .progress-bar-striped {
+        background-image: linear-gradient(45deg, rgba(255, 255, 255, .2) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, .2) 50%, rgba(255, 255, 255, .2) 75%, transparent 75%, transparent);
+        background-size: 40px 40px;
+      }
+      .progress-bar-animated {
+        animation: progress-bar-stripes 1s linear infinite;
+      }
     </style>
 <script type="importmap">
 {
@@ -157,6 +169,13 @@
                     </div>
                 </div>
 
+                <div id="loader-timer-container" class="hidden mb-6">
+                    <div class="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+                        <div id="loader-progress-bar" class="bg-gray-500 h-4 rounded-full transition-all duration-1000 ease-linear progress-bar-striped progress-bar-animated" style="width: 0%;"></div>
+                    </div>
+                    <p id="loader-timer-text" class="text-center text-sm text-gray-600 mt-2"></p>
+                </div>
+
                 <div id="content-area"></div>
             </div>
             <div id="detail-container" class="hidden"></div>
@@ -166,7 +185,7 @@
             <p class="text-sm text-gray-500 mb-2"></p>
             <p class="text-xs text-gray-500 mt-2 max-w-2xl mx-auto">Не является публичной офертой. Сведения о стоимости являются рекламной информацией и могут не совпадать с окончательной стоимостью продажи. Все фотографии представлены с целью иллюстрации предложения. Для точной информации об ассортименте и ценах свяжитесь с сотрудниками компании.</p>
             <div class="mt-4 flex justify-center items-center gap-2">
-                <span class="inline-block bg-gray-200 text-gray-600 text-xs font-semibold px-2.5 py-0.5 rounded-full">Beta 5.12.3</span>
+                <span class="inline-block bg-gray-200 text-gray-600 text-xs font-semibold px-2.5 py-0.5 rounded-full">Beta 5.12.4</span>
                 <a href="https://yandex.by/maps/org/gate_automobile/152188575796/?from=mapframe&ll=37.670141%2C55.714044&z=16" target="_blank" rel="noopener noreferrer" class="inline-block text-black text-xs font-semibold px-2.5 py-0.5 rounded-full" style="background-color: #FFCC00;">Посмотреть на Яндекс.Картах</a>
             </div>
         </footer>
@@ -200,6 +219,14 @@ document.addEventListener('DOMContentLoaded', () => {
         renderedItemsCount: 20,
         itemsPerLoad: 10,
     };
+    let timerState = {
+        intervalId: null,
+        secondsLeft: 5,
+        initialDuration: 5,
+        messages: ['Почти готово...', 'Финализируем загрузку...', 'Загоняем автомобили...'],
+        currentMessageIndex: 0,
+        isCyclingMessages: false,
+    };
     const FEED_URL = 'https://autos.autocrm.ru/api/auto-ru/feed?id=jtEjHMTcfwjkVwRngrnbRw%3D%3D&isUsed=0';
     const PROXY_URL = `https://api.allorigins.win/raw?url=${encodeURIComponent(FEED_URL)}`;
     
@@ -218,6 +245,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const sortSelect = document.getElementById('sort-select');
     const layoutToggleBtn = document.getElementById('layout-toggle-btn');
     const exclusiveToggleBtn = document.getElementById('exclusive-toggle-btn');
+    const loaderTimerContainer = document.getElementById('loader-timer-container');
+    const loaderProgressBar = document.getElementById('loader-progress-bar');
+    const loaderTimerText = document.getElementById('loader-timer-text');
     // --- END OF DOM ELEMENT REFERENCES ---
     
     // --- ICONS ---
@@ -242,6 +272,56 @@ document.addEventListener('DOMContentLoaded', () => {
 
         return { value, currency };
     };
+    
+    const stopLoadingTimer = () => {
+        if (timerState.intervalId) {
+            clearInterval(timerState.intervalId);
+            timerState.intervalId = null;
+        }
+        timerState.isCyclingMessages = false;
+        if (loaderTimerContainer) {
+            loaderTimerContainer.classList.add('hidden');
+        }
+        if (loaderProgressBar) {
+            loaderProgressBar.style.width = '0%';
+        }
+    };
+
+    const startLoadingTimer = () => {
+        stopLoadingTimer(); // Reset any existing timers
+        timerState.secondsLeft = 5;
+        timerState.initialDuration = 5;
+        timerState.currentMessageIndex = 0;
+        
+        if (!loaderTimerContainer || !loaderProgressBar || !loaderTimerText) return;
+
+        loaderTimerContainer.classList.remove('hidden');
+
+        timerState.intervalId = setInterval(() => {
+            if (timerState.secondsLeft > 0) {
+                const progress = ((timerState.initialDuration - timerState.secondsLeft + 1) / timerState.initialDuration) * 100;
+                loaderProgressBar.style.width = `${Math.min(progress, 100)}%`;
+                loaderTimerText.textContent = `Загрузка данных... Осталось примерно ${timerState.secondsLeft} сек`;
+                timerState.secondsLeft--;
+            } else {
+                if (!timerState.isCyclingMessages) {
+                    timerState.isCyclingMessages = true;
+                    loaderProgressBar.style.width = '100%';
+                    
+                    clearInterval(timerState.intervalId);
+
+                    const cycleMessages = () => {
+                        loaderTimerText.textContent = timerState.messages[timerState.currentMessageIndex];
+                        timerState.currentMessageIndex = (timerState.currentMessageIndex + 1) % timerState.messages.length;
+                    };
+
+                    cycleMessages();
+                    timerState.intervalId = setInterval(cycleMessages, 2500);
+                }
+            }
+        }, 1000);
+    };
+
 
     const fetchAndParseCars = async (initialCarId = null) => {
         const CACHE_KEY = 'gateAutoCarData';
@@ -289,6 +369,7 @@ document.addEventListener('DOMContentLoaded', () => {
             state.loading = true;
             state.error = null;
             renderApp();
+            startLoadingTimer();
         }
 
         // --- 3. Fetch fresh data from network ---
@@ -411,6 +492,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
+            stopLoadingTimer();
             const oldDataString = JSON.stringify({ cars, eurRate: state.eurRate });
             const newDataString = JSON.stringify({ cars: freshCars, eurRate: freshEurRate });
             
@@ -459,6 +541,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error("Error fetching fresh data:", error);
+            stopLoadingTimer();
             if (!hasRenderedFromCache) {
                 state.loading = false;
                 state.error = "Не удалось загрузить данные об автомобилях. Пожалуйста, проверьте ваше интернет-соединение и попробуйте еще раз.";
