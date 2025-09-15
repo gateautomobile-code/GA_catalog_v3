@@ -185,12 +185,24 @@
             <p class="text-sm text-gray-500 mb-2"></p>
             <p class="text-xs text-gray-500 mt-2 max-w-2xl mx-auto">Не является публичной офертой. Сведения о стоимости являются рекламной информацией и могут не совпадать с окончательной стоимостью продажи. Все фотографии представлены с целью иллюстрации предложения. Для точной информации об ассортименте и ценах свяжитесь с сотрудниками компании.</p>
             <div class="mt-4 flex justify-center items-center gap-2">
-                <span class="inline-block bg-gray-200 text-gray-600 text-xs font-semibold px-2.5 py-0.5 rounded-full">Beta 5.12.5</span>
+                <span class="inline-block bg-gray-200 text-gray-600 text-xs font-semibold px-2.5 py-0.5 rounded-full">Beta 5.12.6</span>
                 <a href="https://yandex.by/maps/org/gate_automobile/152188575796/?from=mapframe&ll=37.670141%2C55.714044&z=16" target="_blank" rel="noopener noreferrer" class="inline-block text-black text-xs font-semibold px-2.5 py-0.5 rounded-full" style="background-color: #FFCC00;">Посмотреть на Яндекс.Картах</a>
             </div>
         </footer>
     </div>
 </div>
+
+<!-- Floating Action Menu -->
+<div id="floating-menu" class="fixed bottom-9 left-1/2 -translate-x-1/2 z-40 opacity-0 pointer-events-none transform translate-y-4 transition-all duration-300 ease-in-out">
+    <div class="bg-white/60 backdrop-blur-xl rounded-full shadow-lg border border-white/30 flex items-center p-2 space-x-2">
+        <button id="scroll-to-top-btn" class="w-12 h-12 flex items-center justify-center bg-gray-900 text-white rounded-full hover:bg-gray-700 transition-colors transform active:scale-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100/50 focus:ring-black" aria-label="Наверх">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
+            </svg>
+        </button>
+    </div>
+</div>
+
 
 <script>
     if ('serviceWorker' in navigator) {
@@ -248,6 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const loaderTimerContainer = document.getElementById('loader-timer-container');
     const loaderProgressBar = document.getElementById('loader-progress-bar');
     const loaderTimerText = document.getElementById('loader-timer-text');
+    const floatingMenu = document.getElementById('floating-menu');
     // --- END OF DOM ELEMENT REFERENCES ---
     
     // --- ICONS ---
@@ -1231,6 +1244,24 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- END OF HANDLERS ---
 
     // --- START OF EVENT LISTENERS ---
+    if (floatingMenu) {
+        const scrollToTopBtn = document.getElementById('scroll-to-top-btn');
+
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 400) {
+                floatingMenu.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-4');
+            } else {
+                floatingMenu.classList.add('opacity-0', 'pointer-events-none', 'translate-y-4');
+            }
+        });
+
+        if (scrollToTopBtn) {
+            scrollToTopBtn.addEventListener('click', () => {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+        }
+    }
+
     searchInput.addEventListener('input', (e) => {
         state.searchTerm = e.target.value;
         clearSearchBtn.classList.toggle('hidden', !state.searchTerm);
