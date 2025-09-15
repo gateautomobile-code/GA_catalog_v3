@@ -1,6 +1,6 @@
 
 
-const CACHE_NAME = 'gate-auto-cache-v5.15.24';
+const CACHE_NAME = 'gate-auto-cache-v5.15.29';
 const APP_SHELL_URLS = [
   '/',
   '/index.html',

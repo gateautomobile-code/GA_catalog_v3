@@ -108,6 +108,42 @@
               padding-right: 1.5rem;
           }
       }
+      /* Styles for discount icon */
+      .discount-icon-wrapper {
+        position: relative;
+        overflow: hidden;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .discount-icon-wrapper::after {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background-image: linear-gradient(
+            -45deg,
+            rgba(255, 255, 255, 0) 0%,
+            rgba(255, 255, 255, 0) 40%,
+            rgba(255, 255, 255, 0.4) 50%,
+            rgba(255, 255, 255, 0) 60%,
+            rgba(255, 255, 255, 0) 100%
+        );
+        animation: metal-glint 4s ease-in-out infinite;
+      }
+      @keyframes metal-glint {
+        0% {
+            transform: translateX(-100%) translateY(-100%) rotate(-45deg);
+        }
+        10% {
+            transform: translateX(100%) translateY(100%) rotate(-45deg);
+        }
+        100% {
+             transform: translateX(100%) translateY(100%) rotate(-45deg);
+        }
+      }
     </style>
 <script type="importmap">
 {
@@ -169,8 +205,15 @@
                 <!-- ФИЛЬТРЫ ВЫНЕСЕНЫ ИЗ РОДИТЕЛЬСКОГО КОНТЕЙНЕРА, ЧТОБЫ УБРАТЬ ОГРАНИЧЕНИЕ ДЛЯ STICKY -->
                 <div id="sticky-filters-wrapper" class="sticky top-0 z-30">
                     <div class="flex justify-between items-center gap-4">
-                        <div id="availability-filters" class="flex flex-wrap justify-start gap-2"></div>
+                        <div id="main-filters" class="flex flex-wrap justify-start gap-2">
+                            <button id="cycling-availability-btn" class="filter-pill px-5 py-2 text-sm font-semibold rounded-full border transition-all duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-black bg-black text-white border-black shadow overflow-hidden whitespace-nowrap" style="transition-property: width, background-color, border-color, color;">
+                                <span class="inline-block">Все</span>
+                            </button>
+                        </div>
                         <div class="flex-shrink-0 flex items-center gap-2">
+                             <button id="discount-toggle-btn" class="w-10 h-10 flex items-center justify-center rounded-full bg-white border border-gray-200 text-gray-600 hover:bg-gray-200 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-black" aria-label="Показать со скидкой">
+                                <!-- SVG will be injected by JS -->
+                            </button>
                             <button id="exclusive-toggle-btn" class="w-10 h-10 flex items-center justify-center rounded-full bg-white border border-gray-200 text-gray-600 hover:bg-gray-200 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-black" aria-label="Показать эксклюзивные">
                                 <!-- SVG will be injected by JS -->
                             </button>
@@ -222,7 +265,7 @@
             <p class="text-sm text-gray-500 mb-2"></p>
             <p class="text-xs text-gray-500 mt-2 max-w-2xl mx-auto">Не является публичной офертой. Сведения о стоимости являются рекламной информацией и могут не совпадать с окончательной стоимостью продажи. Все фотографии представлены с целью иллюстрации предложения. Для точной информации об ассортименте и ценах свяжитесь с сотрудниками компании.</p>
             <div class="mt-4 flex justify-center">
-                <span class="inline-block bg-gray-200 text-gray-600 text-xs font-semibold px-2.5 py-0.5 rounded-full">Beta 5.15.24</span>
+                <span class="inline-block bg-gray-200 text-gray-600 text-xs font-semibold px-2.5 py-0.5 rounded-full">Beta 5.15.29</span>
             </div>
         </footer>
     </div>
@@ -256,7 +299,9 @@ document.addEventListener('DOMContentLoaded', () => {
         loading: true,
         error: null,
         searchTerm: '',
-        activeFilter: 'Все',
+        availabilityFilter: 'Все', // 'Все', 'В наличии', 'В пути'
+        showExclusiveOnly: false,
+        showDiscountOnly: false,
         selectedBrand: 'Все бренды',
         sortOrder: 'default',
         eurRate: null,
@@ -287,11 +332,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const contentArea = document.getElementById('content-area');
     const searchInput = document.getElementById('search-input');
     const clearSearchBtn = document.getElementById('clear-search-btn');
-    const availabilityFiltersContainer = document.getElementById('availability-filters');
+    const cyclingAvailabilityBtn = document.getElementById('cycling-availability-btn');
     const brandSelect = document.getElementById('brand-select');
     const sortSelect = document.getElementById('sort-select');
     const layoutToggleBtn = document.getElementById('layout-toggle-btn');
     const exclusiveToggleBtn = document.getElementById('exclusive-toggle-btn');
+    const discountToggleBtn = document.getElementById('discount-toggle-btn');
     const loaderTimerContainer = document.getElementById('loader-timer-container');
     const loaderProgressBar = document.getElementById('loader-progress-bar');
     const loaderTimerText = document.getElementById('loader-timer-text');
@@ -301,6 +347,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- ICONS ---
     const starIconInactiveSVG = `<svg class="w-6 h-6" viewBox="0 0 55 55" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15.1663 52.1331C14.245 52.1331 13.2756 51.9131 12.3819 51.2325C10.7456 49.9881 10.4569 48.0631 10.3881 46.5231C10.3056 44.7356 10.5256 42.4875 10.8281 39.3663L10.9794 37.8125C11.1306 36.2794 11.1856 35.585 11.0481 35.145C10.9106 34.7119 10.4775 34.1894 9.50126 33.0481L8.50438 31.8863C6.50376 29.5488 5.06001 27.8575 4.11813 26.3588C3.37563 25.1763 2.45438 23.3681 3.08001 21.3606C3.71251 19.3256 5.50001 18.4181 6.79251 17.9094C8.40813 17.27 10.5325 16.7956 13.4681 16.1288L14.9256 15.7988C16.3419 15.4756 16.9813 15.3244 17.3113 15.0769C17.6688 14.8088 18.0469 14.1281 18.7275 12.9044L19.4769 11.5569C20.9894 8.84813 22.0756 6.88876 23.1481 5.49313C24.0144 4.36563 25.4031 2.86688 27.5 2.86688C29.5969 2.86688 30.9856 4.36563 31.8519 5.49313C32.9244 6.89563 34.0175 8.84813 35.5231 11.5569L36.2725 12.9044C36.96 14.135 37.3381 14.8088 37.6888 15.0769C38.0188 15.3313 38.6581 15.4825 40.0744 15.7988L41.5319 16.1288C44.4675 16.7956 46.5919 17.2769 48.2075 17.9094C49.5 18.4181 51.2875 19.3325 51.92 21.3606C52.5456 23.3681 51.6244 25.1763 50.8819 26.3588C49.94 27.8575 48.4963 29.5488 46.4956 31.8863L45.4988 33.0481C44.5225 34.1894 44.0825 34.7119 43.9519 35.145C43.8144 35.585 43.8763 36.2794 44.0206 37.8125L44.1719 39.3663C44.4744 42.4806 44.6944 44.7356 44.6119 46.5231C44.5431 48.0631 44.2544 49.9881 42.6181 51.2325C40.92 52.5181 38.9331 52.1538 37.5925 51.7688C35.9288 51.2944 33.9419 50.38 31.1919 49.1081L29.8238 48.4756C28.5931 47.9119 27.9194 47.5956 27.5 47.5956C27.0806 47.5956 26.4069 47.905 25.1763 48.4756L23.8081 49.1081C21.0581 50.3731 19.0713 51.2875 17.4075 51.7688C16.7681 51.9544 15.9913 52.1263 15.1663 52.1263V52.1331ZM27.5 6.30438C26.3381 6.30438 24.7225 9.21251 22.4744 13.2344L21.725 14.5819C20.8175 16.2181 20.3156 17.1188 19.3806 17.82C18.4388 18.535 17.4006 18.7688 15.675 19.1606L14.2175 19.4906C11.5363 20.0956 9.41188 20.5769 8.04376 21.12C6.57251 21.6975 6.42126 22.1719 6.35251 22.3988C6.24251 22.7563 6.23563 23.2925 7.01938 24.5438C7.83063 25.8294 9.27438 27.5206 11.11 29.6656L12.1069 30.8275C13.31 32.2369 13.9769 33.0138 14.3275 34.1413C14.6781 35.2619 14.575 36.2931 14.3963 38.1631L14.245 39.7169C13.7775 44.5569 13.4681 47.7538 14.4581 48.51C15.3931 49.2181 18.1706 47.9394 22.3713 46.0075L23.7394 45.375C25.355 44.6325 26.3313 44.1788 27.5 44.1788C28.6688 44.1788 29.645 44.6256 31.2606 45.3681L32.6288 46.0006C36.8294 47.9325 39.6069 49.2113 40.5419 48.5031C41.5319 47.7538 41.2225 44.55 40.755 39.71L40.6038 38.1563C40.425 36.2863 40.3219 35.255 40.6725 34.1344C41.0231 33.0069 41.69 32.23 42.8931 30.8206L43.89 29.6588C45.7256 27.5138 47.1694 25.8225 47.9806 24.5369C48.7713 23.2856 48.7575 22.7494 48.6475 22.3919C48.5788 22.165 48.4344 21.6975 46.9563 21.1131C45.5881 20.57 43.4638 20.0956 40.7825 19.4838L39.325 19.1538C37.5994 18.7619 36.5613 18.5281 35.6194 17.8131C34.6913 17.105 34.1894 16.2113 33.275 14.575L32.5256 13.2275C30.2844 9.20563 28.6619 6.29751 27.5 6.29751V6.30438Z" fill="currentColor"/></svg>`;
     const starIconActiveSVG = `<svg class="w-6 h-6" viewBox="0 0 153 153" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M58.3504 34.4823C66.4212 20.0047 70.4565 12.7563 76.5 12.7563C82.5435 12.7563 86.5789 20.0047 94.6497 34.4823L96.7343 38.2308C99.0293 42.3427 100.177 44.4082 101.975 45.7661C103.772 47.124 105.991 47.6212 110.447 48.6348L114.501 49.5528C130.184 53.1101 138.025 54.8696 139.88 60.8748C141.755 66.8801 136.4 73.1148 125.709 85.6226L122.936 88.8547C119.895 92.412 118.384 94.1906 117.695 96.3708C117.007 98.5702 117.236 100.942 117.695 105.685L118.116 110.007C119.723 126.684 120.545 135.022 115.649 138.733C110.772 142.443 103.428 139.058 88.74 132.307L84.9342 130.566C80.7649 128.654 78.6803 127.678 76.4618 127.678C74.2433 127.678 72.1587 128.635 67.9894 130.566L64.1835 132.307C49.4955 139.058 42.1515 142.443 37.2747 138.733C32.3978 135.022 33.201 126.684 34.8075 110.007L35.2283 105.685C35.6873 100.942 35.9168 98.5702 35.2283 96.3708C34.5398 94.1715 33.0289 92.3929 29.988 88.8547L27.2149 85.6226C16.524 73.1148 11.1882 66.8801 13.0433 60.8748C14.9175 54.8696 22.7396 53.1101 38.4222 49.5528L42.4767 48.6348C46.9328 47.6212 49.1513 47.124 50.949 45.7661C52.7468 44.4082 53.8943 42.3427 56.1893 38.2308L58.2739 34.4823H58.3504Z" fill="white"/></svg>`;
+    
+    // Icon for the filter button - slightly larger and uses currentColor to adapt to button state (white on gray)
+    const discountIconFilterSVG = `<span class="discount-icon-wrapper"><svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M9.68079 1.79601C10.2073 1.30853 10.9933 0.625 12 0.625C13.0067 0.625 13.7927 1.30853 14.3192 1.79601C14.4377 1.90577 14.5438 2.00686 14.6442 2.10262C14.8059 2.25683 14.9533 2.39737 15.1152 2.53812C15.3616 2.75223 15.5576 2.88882 15.7236 2.96183C15.9154 3.03678 16.1682 3.08317 16.4999 3.10947C16.7294 3.12767 16.9523 3.13415 17.1962 3.14125C17.3234 3.14494 17.4562 3.1488 17.5986 3.15457C18.3088 3.18337 19.3479 3.24893 20.0495 3.95048C20.7511 4.65202 20.8166 5.69118 20.8454 6.40146C20.8512 6.54375 20.8551 6.67649 20.8587 6.80354C20.8659 7.04742 20.8723 7.27059 20.8905 7.50002C20.9168 7.83175 20.9632 8.0846 21.0381 8.27632C21.1112 8.44243 21.2478 8.63843 21.4618 8.88477C21.6027 9.04673 21.7431 9.194 21.8973 9.35571C21.9931 9.45617 22.0942 9.56221 22.204 9.68079C22.6914 10.2073 23.375 10.9933 23.375 12C23.375 13.0067 22.6914 13.7927 22.204 14.3192C22.0943 14.4377 21.9932 14.5437 21.8976 14.6441C21.7433 14.8057 21.6027 14.9533 21.4618 15.1152C21.2478 15.3616 21.1112 15.5576 21.0381 15.7236C20.9632 15.9154 20.9168 16.1682 20.8905 16.4999C20.8723 16.7294 20.8659 16.9523 20.8587 17.1962C20.8551 17.3233 20.8512 17.4562 20.8454 17.5986C20.8166 18.3088 20.7511 19.3479 20.0495 20.0495C19.3479 20.7511 18.3088 20.8166 17.5986 20.8454C17.4562 20.8512 17.3235 20.8551 17.1964 20.8587C16.9526 20.8659 16.7294 20.8723 16.4999 20.8905C16.1682 20.9168 15.9154 20.9632 15.7236 21.0381C15.5576 21.1112 15.3616 21.2478 15.1152 21.4618C14.9533 21.6027 14.8061 21.7431 14.6443 21.8972C14.5439 21.993 14.4377 22.0943 14.3192 22.204C13.7927 22.6914 13.0067 23.375 12 23.375C10.9933 23.375 10.2073 22.6914 9.68079 22.204C9.56221 22.0942 9.45617 21.9931 9.35571 21.8973C9.194 21.7431 9.04673 21.6027 8.88477 21.4618C8.63843 21.2478 8.44243 21.1112 8.27632 21.0381C8.0846 20.9632 7.83175 20.9168 7.50002 20.8905C7.27059 20.8723 7.04762 20.8659 6.80375 20.8587C6.67668 20.8551 6.54375 20.8512 6.40146 20.8454C5.69118 20.8166 4.65202 20.7511 3.95048 20.0495C3.24893 19.3479 3.18337 18.3088 3.15457 17.5986C3.1488 17.4562 3.14494 17.3234 3.14125 17.1962C3.13415 16.9523 3.12767 16.7294 3.10947 16.4999C3.08317 16.1682 3.03678 15.9154 2.96183 15.7236C2.88882 15.5576 2.75223 15.3616 2.53812 15.1152C2.39737 14.9533 2.25693 14.8061 2.10273 14.6443C2.00701 14.5439 1.90572 14.4377 1.79601 14.3192C1.30853 13.7927 0.625 13.0067 0.625 12C0.625 10.9933 1.30853 10.2073 1.79601 9.68079C1.9058 9.56221 2.00692 9.45617 2.10273 9.3557C2.25691 9.194 2.39738 9.04671 2.53812 8.88477C2.75223 8.63844 2.88882 8.44244 2.96183 8.27635C3.03678 8.08461 3.08317 7.83176 3.10947 7.50002C3.12767 7.27059 3.13415 7.04762 3.14125 6.80375C3.14494 6.67664 3.1488 6.5438 3.15457 6.40146C3.18337 5.69118 3.24893 4.65202 3.95048 3.95048C4.65202 3.24893 5.69118 3.18337 6.40146 3.15457C6.5438 3.1488 6.67659 3.14494 6.80369 3.14125C7.04756 3.13416 7.27059 3.12767 7.50002 3.10947C7.83176 3.08317 8.08461 3.03678 8.27635 2.96183C8.44244 2.88882 8.63844 2.75223 8.88477 2.53812C9.04671 2.39738 9.19398 2.25693 9.35568 2.10275C9.45615 2.00694 9.56221 1.9058 9.68079 1.79601ZM15.0875 9.2375C15.3567 8.87852 15.284 8.36924 14.925 8.1C14.566 7.83076 14.0567 7.90352 13.7875 8.2625L8.9125 14.7625C8.64326 15.1215 8.71602 15.6308 9.075 15.9C9.43398 16.1692 9.94329 16.0965 10.2125 15.7375L15.0875 9.2375ZM12.8125 14.4375C12.8125 13.5401 13.5401 12.8125 14.4375 12.8125C15.3349 12.8125 16.0625 13.5401 16.0625 14.4375C16.0625 15.3349 15.3349 16.0625 14.4375 16.0625C13.5401 16.0625 12.8125 15.3349 12.8125 14.4375ZM9.5625 7.9375C8.66503 7.9375 7.9375 8.66503 7.9375 9.5625C7.9375 10.4599 8.66503 11.1875 9.5625 11.1875C10.4599 11.1875 11.1875 10.4599 11.1875 9.5625C11.1875 8.66503 10.4599 7.9375 9.5625 7.9375Z" fill="currentColor"/></svg></span>`;
+
+    // Icon for cards - size is relative to font ('1em'), color is a fixed gray.
+    const discountIconCardSVG = `<span class="discount-icon-wrapper"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M9.68079 1.79601C10.2073 1.30853 10.9933 0.625 12 0.625C13.0067 0.625 13.7927 1.30853 14.3192 1.79601C14.4377 1.90577 14.5438 2.00686 14.6442 2.10262C14.8059 2.25683 14.9533 2.39737 15.1152 2.53812C15.3616 2.75223 15.5576 2.88882 15.7236 2.96183C15.9154 3.03678 16.1682 3.08317 16.4999 3.10947C16.7294 3.12767 16.9523 3.13415 17.1962 3.14125C17.3234 3.14494 17.4562 3.1488 17.5986 3.15457C18.3088 3.18337 19.3479 3.24893 20.0495 3.95048C20.7511 4.65202 20.8166 5.69118 20.8454 6.40146C20.8512 6.54375 20.8551 6.67649 20.8587 6.80354C20.8659 7.04742 20.8723 7.27059 20.8905 7.50002C20.9168 7.83175 20.9632 8.0846 21.0381 8.27632C21.1112 8.44243 21.2478 8.63843 21.4618 8.88477C21.6027 9.04673 21.7431 9.194 21.8973 9.35571C21.9931 9.45617 22.0942 9.56221 22.204 9.68079C22.6914 10.2073 23.375 10.9933 23.375 12C23.375 13.0067 22.6914 13.7927 22.204 14.3192C22.0943 14.4377 21.9932 14.5437 21.8976 14.6441C21.7433 14.8057 21.6027 14.9533 21.4618 15.1152C21.2478 15.3616 21.1112 15.5576 21.0381 15.7236C20.9632 15.9154 20.9168 16.1682 20.8905 16.4999C20.8723 16.7294 20.8659 16.9523 20.8587 17.1962C20.8551 17.3233 20.8512 17.4562 20.8454 17.5986C20.8166 18.3088 20.7511 19.3479 20.0495 20.0495C19.3479 20.7511 18.3088 20.8166 17.5986 20.8454C17.4562 20.8512 17.3235 20.8551 17.1964 20.8587C16.9526 20.8659 16.7294 20.8723 16.4999 20.8905C16.1682 20.9168 15.9154 20.9632 15.7236 21.0381C15.5576 21.1112 15.3616 21.2478 15.1152 21.4618C14.9533 21.6027 14.8061 21.7431 14.6443 21.8972C14.5439 21.993 14.4377 22.0943 14.3192 22.204C13.7927 22.6914 13.0067 23.375 12 23.375C10.9933 23.375 10.2073 22.6914 9.68079 22.204C9.56221 22.0942 9.45617 21.9931 9.35571 21.8973C9.194 21.7431 9.04673 21.6027 8.88477 21.4618C8.63843 21.2478 8.44243 21.1112 8.27632 21.0381C8.0846 20.9632 7.83175 20.9168 7.50002 20.8905C7.27059 20.8723 7.04762 20.8659 6.80375 20.8587C6.67668 20.8551 6.54375 20.8512 6.40146 20.8454C5.69118 20.8166 4.65202 20.7511 3.95048 20.0495C3.24893 19.3479 3.18337 18.3088 3.15457 17.5986C3.1488 17.4562 3.14494 17.3234 3.14125 17.1962C3.13415 16.9523 3.12767 16.7294 3.10947 16.4999C3.08317 16.1682 3.03678 15.9154 2.96183 15.7236C2.88882 15.5576 2.75223 15.3616 2.53812 15.1152C2.39737 14.9533 2.25693 14.8061 2.10273 14.6443C2.00701 14.5439 1.90572 14.4377 1.79601 14.3192C1.30853 13.7927 0.625 13.0067 0.625 12C0.625 10.9933 1.30853 10.2073 1.79601 9.68079C1.9058 9.56221 2.00692 9.45617 2.10273 9.3557C2.25691 9.194 2.39738 9.04671 2.53812 8.88477C2.75223 8.63844 2.88882 8.44244 2.96183 8.27635C3.03678 8.08461 3.08317 7.83176 3.10947 7.50002C3.12767 7.27059 3.13415 7.04762 3.14125 6.80375C3.14494 6.67664 3.1488 6.5438 3.15457 6.40146C3.18337 5.69118 3.24893 4.65202 3.95048 3.95048C4.65202 3.24893 5.69118 3.18337 6.40146 3.15457C6.5438 3.1488 6.67659 3.14494 6.80369 3.14125C7.04756 3.13416 7.27059 3.12767 7.50002 3.10947C7.83176 3.08317 8.08461 3.03678 8.27635 2.96183C8.44244 2.88882 8.63844 2.75223 8.88477 2.53812C9.04671 2.39738 9.19398 2.25693 9.35568 2.10275C9.45615 2.00694 9.56221 1.9058 9.68079 1.79601ZM15.0875 9.2375C15.3567 8.87852 15.284 8.36924 14.925 8.1C14.566 7.83076 14.0567 7.90352 13.7875 8.2625L8.9125 14.7625C8.64326 15.1215 8.71602 15.6308 9.075 15.9C9.43398 16.1692 9.94329 16.0965 10.2125 15.7375L15.0875 9.2375ZM12.8125 14.4375C12.8125 13.5401 13.5401 12.8125 14.4375 12.8125C15.3349 12.8125 16.0625 13.5401 16.0625 14.4375C16.0625 15.3349 15.3349 16.0625 14.4375 16.0625C13.5401 16.0625 12.8125 15.3349 12.8125 14.4375ZM9.5625 7.9375C8.66503 7.9375 7.9375 8.66503 7.9375 9.5625C7.9375 10.4599 8.66503 11.1875 9.5625 11.1875C10.4599 11.1875 11.1875 10.4599 11.1875 9.5625C11.1875 8.66503 10.4599 7.9375 9.5625 7.9375Z" fill="#6b7280"/></svg></span>`;
 
     // --- START OF SERVICES (DATA FETCHING & PARSING) ---
     const getSafeTextContent = (element, tagName) => {
@@ -373,7 +425,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const fetchAndParseCars = async (initialCarId = null) => {
         const CACHE_KEY = 'gateAutoCarData';
-        const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes in milliseconds
+        const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes in milliseconds
         
         let hasRenderedFromCache = false;
         
@@ -691,9 +743,10 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
         } else {
             priceBlockHTML = `
-                <div class="text-xl font-bold">
-                    ${hasDiscount ? `<span class="line-through text-gray-400 text-base font-medium mr-2">${formatCurrency(originalPriceForStrikethrough, originalPriceCurrencyForStrikethrough)}</span>` : ''}
-                    ${formatCurrency(displayPrice, displayCurrency)}
+                <div class="flex items-center gap-2">
+                    ${hasDiscount ? `<span class="line-through text-gray-400 text-base font-medium">${formatCurrency(originalPriceForStrikethrough, originalPriceCurrencyForStrikethrough)}</span>` : ''}
+                    <span class="text-xl font-bold">${formatCurrency(displayPrice, displayCurrency)}</span>
+                    ${hasDiscount ? `<span class="text-xl leading-none">${discountIconCardSVG}</span>` : ''}
                 </div>
             `;
         }
@@ -761,7 +814,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (car.priceCurrency === 'EUR' && !state.eurRate) {
             priceBlockHTML = `<div class="text-sm font-bold text-red-600 min-h-[46px] flex items-center">Цена в EUR</div>`;
         } else {
-            const priceLine = `<div class="text-lg font-bold">${formatCurrency(displayPrice, displayCurrency)}</div>`;
+            const priceLine = `
+                <div class="flex items-center gap-1.5">
+                    <span class="text-lg font-bold">${formatCurrency(displayPrice, displayCurrency)}</span>
+                    ${hasDiscount ? `<span class="text-lg leading-none">${discountIconCardSVG}</span>` : ''}
+                </div>`;
             const discountLine = hasDiscount 
                 ? `<div class="line-through text-gray-400 text-xs">${formatCurrency(originalPriceForStrikethrough, originalPriceCurrencyForStrikethrough)}</div>` 
                 : '<div class="h-[18px]"></div>'; // Placeholder to prevent jumping
@@ -823,9 +880,10 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
         } else {
             priceBlockHTML = `
-                <div class="text-3xl font-bold">
-                    ${hasDiscount ? `<span class="line-through text-gray-400 text-xl font-medium mr-3">${formatCurrency(originalPriceForStrikethrough, originalPriceCurrencyForStrikethrough)}</span>` : ''}
-                    ${formatCurrency(displayPrice, displayCurrency)}
+                <div class="flex items-center gap-3">
+                    ${hasDiscount ? `<span class="line-through text-gray-400 text-xl font-medium">${formatCurrency(originalPriceForStrikethrough, originalPriceCurrencyForStrikethrough)}</span>` : ''}
+                    <span class="text-3xl font-bold">${formatCurrency(displayPrice, displayCurrency)}</span>
+                    ${hasDiscount ? `<span class="text-3xl leading-none">${discountIconCardSVG}</span>` : ''}
                 </div>
             `;
         }
@@ -1039,17 +1097,8 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>`;
 
     const renderFilters = () => {
-        const availabilityOptions = ['Все', ...Array.from(new Set(cars.map(c => c.availability)))];
-        availabilityFiltersContainer.innerHTML = availabilityOptions.map(option => `
-            <button data-filter="${option}" class="filter-pill px-4 py-2 text-sm font-semibold rounded-full border transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-black ${
-                state.activeFilter === option
-                ? 'bg-black text-white border-black shadow'
-                : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-200 hover:border-gray-300'
-            }">${option}</button>
-        `).join('');
-        
         // Update exclusive button style
-        const isExclusiveActive = state.activeFilter === 'Эксклюзив';
+        const isExclusiveActive = state.showExclusiveOnly;
         exclusiveToggleBtn.innerHTML = isExclusiveActive ? starIconActiveSVG : starIconInactiveSVG;
         if(isExclusiveActive) {
             exclusiveToggleBtn.className = 'w-10 h-10 flex items-center justify-center rounded-full text-white transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-yellow-500';
@@ -1060,6 +1109,15 @@ document.addEventListener('DOMContentLoaded', () => {
             exclusiveToggleBtn.className = 'w-10 h-10 flex items-center justify-center rounded-full bg-white border border-gray-200 text-gray-600 hover:bg-gray-200 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-black';
             exclusiveToggleBtn.style.background = '';
             exclusiveToggleBtn.style.borderColor = '';
+        }
+
+        // Update discount button style
+        const isDiscountActive = state.showDiscountOnly;
+        discountToggleBtn.innerHTML = discountIconFilterSVG;
+        if(isDiscountActive) {
+            discountToggleBtn.className = 'w-10 h-10 flex items-center justify-center rounded-full text-white bg-gray-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-black';
+        } else {
+            discountToggleBtn.className = 'w-10 h-10 flex items-center justify-center rounded-full bg-white border border-gray-200 text-gray-600 hover:bg-gray-200 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-black';
         }
 
         const brandOptions = ['Все бренды', ...Array.from(new Set(cars.map(car => car.brand)))];
@@ -1167,10 +1225,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 filtered = filtered.filter(car => car.name.toLowerCase().includes(state.searchTerm.toLowerCase()));
             }
 
-            if (state.activeFilter === 'Эксклюзив') {
+            if (state.availabilityFilter !== 'Все') {
+                filtered = filtered.filter(car => car.availability === state.availabilityFilter);
+            }
+            if (state.showExclusiveOnly) {
                 filtered = filtered.filter(car => car.isExclusive);
-            } else if (state.activeFilter !== 'Все') {
-                filtered = filtered.filter(car => car.availability === state.activeFilter);
+            }
+            if (state.showDiscountOnly) {
+                filtered = filtered.filter(car => car.maxDiscount > 0 && car.finalDiscountPrice && car.finalDiscountPrice > 0);
             }
 
             if (state.selectedBrand !== 'Все бренды') {
@@ -1300,16 +1362,48 @@ document.addEventListener('DOMContentLoaded', () => {
         renderApp(true);
     });
 
-    availabilityFiltersContainer.addEventListener('click', (e) => {
-        if (e.target.classList.contains('filter-pill')) {
-            state.activeFilter = e.target.dataset.filter;
-            state.renderedItemsCount = 20;
-            renderApp(true);
-        }
+    const availabilityCycle = ['Все', 'В наличии', 'В пути'];
+    cyclingAvailabilityBtn.addEventListener('click', () => {
+        const currentTextSpan = cyclingAvailabilityBtn.querySelector('span');
+        const currentIndex = availabilityCycle.indexOf(state.availabilityFilter);
+        const nextIndex = (currentIndex + 1) % availabilityCycle.length;
+        const nextText = availabilityCycle[nextIndex];
+        
+        state.availabilityFilter = nextText;
+
+        const tempSpan = document.createElement('span');
+        tempSpan.className = 'filter-pill px-5 py-2 text-sm font-semibold';
+        tempSpan.style.position = 'absolute';
+        tempSpan.style.visibility = 'hidden';
+        tempSpan.style.whiteSpace = 'nowrap';
+        tempSpan.textContent = nextText;
+        document.body.appendChild(tempSpan);
+        const nextWidth = tempSpan.offsetWidth;
+        document.body.removeChild(tempSpan);
+        
+        cyclingAvailabilityBtn.style.width = cyclingAvailabilityBtn.offsetWidth + 'px';
+        
+        requestAnimationFrame(() => {
+            cyclingAvailabilityBtn.style.width = nextWidth + 'px';
+            currentTextSpan.textContent = nextText;
+        });
+
+        setTimeout(() => {
+            cyclingAvailabilityBtn.style.width = '';
+        }, 300);
+
+        state.renderedItemsCount = 20;
+        renderApp(true);
     });
     
     exclusiveToggleBtn.addEventListener('click', () => {
-        state.activeFilter = state.activeFilter === 'Эксклюзив' ? 'Все' : 'Эксклюзив';
+        state.showExclusiveOnly = !state.showExclusiveOnly;
+        state.renderedItemsCount = 20;
+        renderApp(true);
+    });
+
+    discountToggleBtn.addEventListener('click', () => {
+        state.showDiscountOnly = !state.showDiscountOnly;
         state.renderedItemsCount = 20;
         renderApp(true);
     });
